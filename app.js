@@ -5,6 +5,7 @@ const bcrypt = require("bcrypt");
 const pool = require("./db.js");
 const http = require("http");
 const { Server } = require("socket.io");
+const session = require("express-session");
 
 const app = express();
 const PORT = 3000;
@@ -14,6 +15,13 @@ const io = new Server(server);
 //! Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
+app.use(
+  session({
+    secret: "your-secret-key",
+    resave: false,
+    saveUninitialized: true,
+  })
+);
 
 //! Routes
 app.get("/", (req, res) => {
@@ -24,7 +32,7 @@ app.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    //? Hash the password
+    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
@@ -33,12 +41,15 @@ app.post("/register", async (req, res) => {
     );
 
     console.log(`User registered: ${result.rows[0].username}`);
+
+    // Store username in session
+    req.session.username = result.rows[0].username;
+
     res.status(201).send("User registered successfully!");
     res.redirect("/chat");
   } catch (err) {
     console.error(err);
     if (err.code === "23505") {
-      //? Unique constraint violation
       res.status(400).send("Username Already Exists");
     } else {
       res.status(500).send("Server error.");
@@ -50,7 +61,7 @@ app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    //? Check if user exists
+    // Check if user exists
     const result = await pool.query("SELECT * FROM users WHERE username = $1", [
       username,
     ]);
@@ -61,7 +72,7 @@ app.post("/login", async (req, res) => {
     }
     const user = result.rows[0];
 
-    //? Compare hashed passwords
+    // Compare hashed passwords
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -69,7 +80,9 @@ app.post("/login", async (req, res) => {
       return res.status(400).send("Invalid Password.");
     }
     console.log(`User logged in: ${username}`);
-    res.redirect("/chat");
+
+    // Send the username to the chat page
+    res.redirect(`/chat?username=${username}`);
   } catch (err) {
     console.error(err);
     res.status(500).send("Server error.");

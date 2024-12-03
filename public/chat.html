@@ -8,33 +8,49 @@
   </head>
   <body>
     <div class="chat-container">
-      <h1>Welcome to the Chat Room</h1>
-      <div>
-        <label for="room-select">Choose a room:</label>
-        <select id="room-select">
-          <option value="general">General</option>
-          <option value="sports">Sports</option>
-          <option value="tech">Tech</option>
-        </select>
-        <button id="join-room">Join Room</button>
+      <div class="sidebar">
+        <h2>Welcome, <span id="username"></span></h2>
       </div>
-      <div id="chat-box" class="chat-box">
-        <!-- Messages will appear here -->
+
+      <div class="main-chat">
+        <h1>Chat Room</h1>
+        <div>
+          <label for="room-select">Choose a room:</label>
+          <select id="room-select">
+            <option value="general">General</option>
+            <option value="sports">Sports</option>
+            <option value="tech">Tech</option>
+          </select>
+          <button id="join-room">Join Room</button>
+        </div>
+        <div id="chat-box" class="chat-box">
+          <!-- Messages will appear here -->
+        </div>
+        <form id="chat-form">
+          <input
+            type="text"
+            id="message-input"
+            placeholder="Type your message..."
+            required
+          />
+          <button type="submit">Send</button>
+        </form>
       </div>
-      <form id="chat-form">
-        <input
-          type="text"
-          id="message-input"
-          placeholder="Type your message..."
-          required
-        />
-        <button type="submit">Send</button>
-      </form>
     </div>
 
-    <!-- Include Socket.io library -->
     <script src="/socket.io/socket.io.js"></script>
-    <!-- Link to the external JavaScript file -->
     <script src="chat.js"></script>
+    <script>
+      // Get username from URL query parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const username = urlParams.get("username");
+
+      if (username) {
+        // Display username in the sidebar
+        document.getElementById("username").textContent = username;
+      } else {
+        console.log("Username is not available.");
+      }
+    </script>
   </body>
 </html>
