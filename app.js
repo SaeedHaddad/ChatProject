@@ -15,13 +15,6 @@ const io = new Server(server);
 //! Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
-app.use(
-  session({
-    secret: "your-secret-key",
-    resave: false,
-    saveUninitialized: true,
-  })
-);
 
 //! Routes
 app.get("/", (req, res) => {
