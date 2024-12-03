@@ -34,6 +34,7 @@ app.post("/register", async (req, res) => {
 
     console.log(`User registered: ${result.rows[0].username}`);
     res.status(201).send("User registered successfully!");
+    res.redirect("/chat");
   } catch (err) {
     console.error(err);
     if (err.code === "23505") {
