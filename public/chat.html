@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Room</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="chat-container">
+      <h1>Welcome to the Chat Room</h1>
+      <div>
+        <label for="room-select">Choose a room:</label>
+        <select id="room-select">
+          <option value="general">General</option>
+          <option value="sports">Sports</option>
+          <option value="tech">Tech</option>
+        </select>
+        <button id="join-room">Join Room</button>
+      </div>
+      <div id="chat-box" class="chat-box">
+        <!-- Messages will appear here -->
+      </div>
+      <form id="chat-form">
+        <input
+          type="text"
+          id="message-input"
+          placeholder="Type your message..."
+          required
+        />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      let currentRoom = "general"; // Default room
+
+      // Join the selected room
+      document.getElementById("join-room").addEventListener("click", () => {
+        const roomSelect = document.getElementById("room-select");
+        const newRoom = roomSelect.value;
+        if (newRoom !== currentRoom) {
+          socket.emit("joinRoom", newRoom);
+          currentRoom = newRoom;
+          document.getElementById("chat-box").innerHTML = ""; // Clear chat box
+          console.log(`Joined room: ${newRoom}`);
+        }
+      });
+
+      // Listen for incoming messages
+      socket.on("message", (msg) => {
+        const chatBox = document.getElementById("chat-box");
+        const messageElement = document.createElement("p");
+        messageElement.textContent = msg;
+        chatBox.appendChild(messageElement);
+        chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll
+      });
+
+      // Send messages to the server
+      const chatForm = document.getElementById("chat-form");
+      chatForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const messageInput = document.getElementById("message-input");
+        const message = messageInput.value;
+        socket.emit("chatMessage", { room: currentRoom, message });
+        messageInput.value = "";
+      });
+    </script>
+  </body>
+</html>
