@@ -2,33 +2,103 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat App</title>
-    <link rel="stylesheet" href="styles.css" />
+    <title>Login/Register</title>
   </head>
   <body>
-    <div class="container">
-      <h1>Welcome to Chat App</h1>
-      <h2>Register</h2>
-      <form action="/register" method="POST">
-        <label for="reg-username">Username:</label>
-        <input type="text" id="reg-username" name="username" required />
-
-        <label for="reg-password">Password:</label>
-        <input type="password" id="reg-password" name="password" required />
-
+    <div class="login-container">
+      <form id="registerForm">
+        <input type="text" name="username" placeholder="Username" required />
+        <input
+          type="password"
+          name="password"
+          placeholder="Password"
+          required
+        />
         <button type="submit">Register</button>
       </form>
-      <h2>Login</h2>
-      <form action="/login" method="POST">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required />
 
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required />
+      <script>
+        document
+          .getElementById("registerForm")
+          .addEventListener("submit", async (e) => {
+            e.preventDefault();
 
-        <button type="submit">Join Chat</button>
+            const formData = new FormData(e.target);
+            const username = formData.get("username");
+            const password = formData.get("password");
+
+            try {
+              const response = await fetch("/register", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ username, password }),
+              });
+
+              const data = await response.json();
+
+              if (response.ok) {
+                window.location.href = data.redirectUrl;
+              } else {
+                alert(data.error || "Registration failed");
+              }
+            } catch (error) {
+              console.error("Registration error:", error);
+              alert("An error occurred during registration");
+            }
+          });
+      </script>
+      <form id="loginForm">
+        <input type="text" name="username" placeholder="Username" required />
+        <input
+          type="password"
+          name="password"
+          placeholder="Password"
+          required
+        />
+        <button type="submit">Login</button>
       </form>
     </div>
+
+    <script>
+      document
+        .getElementById("loginForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault(); // Prevent default form submission
+
+          // Get form data
+          const formData = new FormData(e.target);
+          const username = formData.get("username");
+          const password = formData.get("password");
+
+          try {
+            const response = await fetch("/login", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                username,
+                password,
+              }),
+            });
+
+            // Parse the JSON response
+            const data = await response.json();
+
+            if (response.ok) {
+              // Redirect using the URL from the server response
+              window.location.href = data.redirectUrl;
+            } else {
+              // Show error message
+              alert(data.error || "Login failed");
+            }
+          } catch (error) {
+            console.error("Login error:", error);
+            alert("An error occurred during login");
+          }
+        });
+    </script>
   </body>
 </html>
