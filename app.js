@@ -42,11 +42,8 @@ app.post("/register", async (req, res) => {
 
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
 
-    // Store username in session
-    req.session.username = result.rows[0].username;
-
-    res.status(201).send("User registered successfully!");
-    res.redirect(`/chat?token=${token}`);
+    // Send the redirect to the chat page with the token
+    res.redirect(`/chat?token=${token}&username=${username}`);
   } catch (err) {
     console.error(err);
     if (err.code === "23505") {
@@ -83,7 +80,7 @@ app.post("/login", async (req, res) => {
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
 
     // Send the username to the chat page
-    res.redirect(`/chat?token=${token}`);
+    res.redirect(`/chat?token=${token}&username=${username}`);
   } catch (err) {
     console.error(err);
     res.status(500).send("Server error.");
