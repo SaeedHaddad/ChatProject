@@ -5,12 +5,17 @@ const bcrypt = require("bcrypt");
 const pool = require("./db.js");
 const http = require("http");
 const { Server } = require("socket.io");
-const session = require("express-session");
+const jwt = require("jsonwebtoken");
+const redisClient = require("./redis.js");
+const { timeStamp } = require("console");
 
 const app = express();
 const PORT = 3000;
 const server = http.createServer(app);
 const io = new Server(server);
+
+//! Secret Key for JWT
+const JWT_SECRET = "a2F5wqTh9X$mN7!zQ3pL6jR#kG4bS9fU2hJ5";
 
 //! Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -35,11 +40,13 @@ app.post("/register", async (req, res) => {
 
     console.log(`User registered: ${result.rows[0].username}`);
 
+    const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
+
     // Store username in session
     req.session.username = result.rows[0].username;
 
     res.status(201).send("User registered successfully!");
-    res.redirect("/chat");
+    res.redirect(`/chat?token=${token}`);
   } catch (err) {
     console.error(err);
     if (err.code === "23505") {
@@ -73,9 +80,10 @@ app.post("/login", async (req, res) => {
       return res.status(400).send("Invalid Password.");
     }
     console.log(`User logged in: ${username}`);
+    const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
 
     // Send the username to the chat page
-    res.redirect(`/chat?username=${username}`);
+    res.redirect(`/chat?token=${token}`);
   } catch (err) {
     console.error(err);
     res.status(500).send("Server error.");
@@ -105,9 +113,36 @@ io.on("connection", (socket) => {
   });
 
   //? Handle chat messages
-  socket.on("chatMessage", ({ room, message }) => {
-    console.log(`Message to ${room}: ${message}`);
-    io.to(room).emit("message", message); // Broadcast message to the room
+  socket.on("chatMessage", async ({ token, room, message }) => {
+    if (!token) {
+      console.error("Token missing in chatMessage event");
+      socket.emit("error", "Authentication token is required.");
+      return;
+    }
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const username = decoded.username;
+
+      //Save Messages to Redis
+      const messageKey = `room:${room}:messages`;
+      const userMessage = { username, message, timestamp: Date.now() };
+      await redisClient
+        .rPush(messageKey, JSON.stringify(userMessage))
+        .then(() => {
+          console.log(`Message stored in Redus under key: ${messageKey}`);
+        })
+        .catch((err) => {
+          console.error("Failed to store message in Redis", err.message);
+        });
+
+      console.log(`Message to ${room}: ${message}`);
+
+      // Broadcast message to the room
+      io.to(room).emit("message", `${username}: ${message}`);
+    } catch (err) {
+      console.error("Invalid token:", err.message);
+      socket.emit("error", "Authenication failed.");
+    }
   });
 
   //?Handle user disconnection

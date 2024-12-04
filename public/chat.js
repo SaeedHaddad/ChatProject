@@ -2,6 +2,12 @@
 const socket = io();
 let currentRoom = "general"; // Default room
 
+const token = new URLSearchParams(window.location.search).get("token"); //! To get the token from the URL
+
+if (!token) {
+  alert("authentication token is missing. please login again");
+  window.location.href = "/";
+}
 // Join the selected room
 document.getElementById("join-room").addEventListener("click", () => {
   const roomSelect = document.getElementById("room-select");
@@ -23,12 +29,22 @@ socket.on("message", (msg) => {
   chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll
 });
 
+//!Handle Errors
+socket.on("error", (errMsg) => {
+  alert(errMsg);
+});
+
 // Send messages to the server
 const chatForm = document.getElementById("chat-form");
 chatForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const messageInput = document.getElementById("message-input");
   const message = messageInput.value;
-  socket.emit("chatMessage", { room: currentRoom, message });
+  if (!message.trim()) {
+    return; // Prevents sending empty messages
+  }
+  console.log("Token being sent:", token);
+
+  socket.emit("chatMessage", { token, room: currentRoom, message });
   messageInput.value = ""; // Clear input field
 });
