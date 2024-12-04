@@ -30,7 +30,7 @@ app.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Hash the password
+    //? Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
@@ -42,7 +42,7 @@ app.post("/register", async (req, res) => {
 
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
 
-    // Send the redirect to the chat page with the token
+    //? Send the redirect to the chat page with the token
     res.redirect(`/chat?token=${token}&username=${username}`);
   } catch (err) {
     console.error(err);
@@ -58,7 +58,7 @@ app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Check if user exists
+    //? Check if user exists
     const result = await pool.query("SELECT * FROM users WHERE username = $1", [
       username,
     ]);
@@ -69,7 +69,7 @@ app.post("/login", async (req, res) => {
     }
     const user = result.rows[0];
 
-    // Compare hashed passwords
+    //? Compare hashed passwords
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -79,7 +79,7 @@ app.post("/login", async (req, res) => {
     console.log(`User logged in: ${username}`);
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
 
-    // Send the username to the chat page
+    //? Send the username to the chat page
     res.redirect(`/chat?token=${token}&username=${username}`);
   } catch (err) {
     console.error(err);
@@ -120,7 +120,7 @@ io.on("connection", (socket) => {
       const decoded = jwt.verify(token, JWT_SECRET);
       const username = decoded.username;
 
-      //Save Messages to Redis
+      //? Save Messages to Redis
       const messageKey = `room:${room}:messages`;
       const userMessage = { username, message, timestamp: Date.now() };
       await redisClient
@@ -134,7 +134,7 @@ io.on("connection", (socket) => {
 
       console.log(`Message to ${room}: ${message}`);
 
-      // Broadcast message to the room
+      //? Broadcast message to the room
       io.to(room).emit("message", `${username}: ${message}`);
     } catch (err) {
       console.error("Invalid token:", err.message);

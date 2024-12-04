@@ -1,4 +1,5 @@
 const redis = require("redis");
+//! Redis Configuration
 
 const redisClient = redis.createClient({
   url: "redis://localhost:6379",
