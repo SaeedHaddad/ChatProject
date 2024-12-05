@@ -28,7 +28,6 @@ app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    //? Check if user exists
     const result = await pool.query("SELECT * FROM users WHERE username = $1", [
       username,
     ]);
@@ -38,18 +37,13 @@ app.post("/login", async (req, res) => {
     }
 
     const user = result.rows[0];
-
-    //? Compare passwords
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid Password" });
     }
 
-    //? Generate token
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
-
-    //? Send JSON response with redirect URL
     res.json({
       token,
       username,
@@ -65,18 +59,13 @@ app.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    //* Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
+    await pool.query("INSERT INTO users (username, password) VALUES ($1, $2)", [
+      username,
+      hashedPassword,
+    ]);
 
-    const result = await pool.query(
-      "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *",
-      [username, hashedPassword]
-    );
-
-    //* Generate token
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
-
-    //* Send JSON response with redirect URL
     res.json({
       token,
       username,
@@ -100,9 +89,37 @@ app.get("/chat", (req, res) => {
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
-  //? Handle room joining
+  // Handle chat messages
+  socket.on("chatMessage", async ({ token, room, message }) => {
+    if (!token) {
+      socket.emit("error", "Authentication token is required.");
+      return;
+    }
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const username = decoded.username;
+
+      const messageKey = `room:${room}:messages`;
+      const userMessage = { username, message, timestamp: Date.now() };
+
+      // Save the message to Redis
+      await redisClient.rPush(messageKey, JSON.stringify(userMessage));
+
+      // Broadcast the message to the room
+      io.to(room).emit("message", {
+        username,
+        message,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("Invalid token:", err.message);
+      socket.emit("error", "Authentication failed.");
+    }
+  });
+
+  // Fetch all previous messages when joining a room
   socket.on("joinRoom", async (room) => {
-    const previousRoom = [...socket.rooms][1]; // Get the first room besides the socket's own room
+    const previousRoom = [...socket.rooms][1]; // Get the previous room
     if (previousRoom) {
       socket.leave(previousRoom);
       console.log(`User ${socket.id} left room: ${previousRoom}`);
@@ -111,51 +128,32 @@ io.on("connection", (socket) => {
     socket.join(room);
     console.log(`User ${socket.id} joined room: ${room}`);
 
-    //? Fetch previous messages from Redis
     const messageKey = `room:${room}:messages`;
     try {
-      //? Get messages from Redis, limiting to the last 10 messages
-      const messages = await redisClient.lRange(messageKey, 0, 9); // 0 to 9 to get last 10 messages
-      const parsedMessages = messages.map((msg) => JSON.parse(msg)); // Parse each message
+      const messages = await redisClient.lRange(messageKey, 0, -1);
+      const parsedMessages = messages.map((msg) => JSON.parse(msg));
 
-      //? Send the previous messages back to the client
+      // Send all previous messages to the client
       socket.emit("previousMessages", parsedMessages);
     } catch (err) {
-      console.error("Error fetching previous messages from Redis:", err);
+      console.error("Error fetching messages from Redis:", err);
     }
 
-    socket.emit("message", `Welcome to the ${room} room!`);
-    socket.to(room).emit("message", `A new user has joined the ${room} room.`);
+    // Notify the room about the new user
+    socket.emit("message", {
+      system: true,
+      message: `Welcome to the ${room} room!`,
+      timestamp: new Date().toISOString(),
+    });
+
+    socket.to(room).emit("message", {
+      system: true,
+      message: `A new user has joined the ${room} room.`,
+      timestamp: new Date().toISOString(),
+    });
   });
 
-  //? Handle chat messages
-  socket.on("chatMessage", async ({ token, room, message }) => {
-    if (!token) {
-      console.error("Token missing in chatMessage event");
-      socket.emit("error", "Authentication token is required.");
-      return;
-    }
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      const username = decoded.username;
-
-      //? Save Messages to Redis
-      const messageKey = `room:${room}:messages`;
-      const userMessage = { username, message, timestamp: Date.now() };
-
-      //? Store the message in Redis
-      await redisClient.rPush(messageKey, JSON.stringify(userMessage));
-      console.log(`Message stored in Redis under key: ${messageKey}`);
-
-      //? Broadcast message to the room
-      io.to(room).emit("message", `${username}: ${message}`);
-    } catch (err) {
-      console.error("Invalid token:", err.message);
-      socket.emit("error", "Authentication failed.");
-    }
-  });
-
-  //? Handle user disconnection
+  // Handle user disconnection
   socket.on("disconnect", () => {
     console.log("A user disconnected:", socket.id);
   });

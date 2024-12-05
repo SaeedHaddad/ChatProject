@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat Room</title>
+    <title>ChatterBox</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -13,19 +13,28 @@
       </div>
 
       <div class="main-chat">
-        <h1>Chat Room</h1>
-        <div>
-          <label for="room-select">Choose a room:</label>
-          <select id="room-select">
-            <option value="general">General</option>
-            <option value="sports">Sports</option>
-            <option value="tech">Tech</option>
-          </select>
-          <button id="join-room">Join Room</button>
+        <!-- Welcome message moved to the top -->
+        <div class="room-selection">
+          <h1>Chat Room</h1>
+          <div>
+            <label for="room-select">Choose a room:</label>
+            <select id="room-select">
+              <option value="general">General</option>
+              <option value="sports">Sports</option>
+              <option value="tech">Tech</option>
+            </select>
+            <button id="join-room">Join Room</button>
+          </div>
         </div>
-        <div id="chat-box" class="chat-box">
-          <!-- Messages will appear here -->
+
+        <!-- Chat Box Div to allow for its own design -->
+        <div id="chat-box-container" class="chat-box-container">
+          <div id="chat-box" class="chat-box">
+            <!-- Messages will appear here -->
+          </div>
         </div>
+
+        <!-- Chat input form -->
         <form id="chat-form">
           <input
             type="text"
