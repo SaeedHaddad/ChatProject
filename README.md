@@ -18,6 +18,7 @@ A modern, real-time chat application built with Node.js, enabling instant messag
 - Caching: Redis
 - Frontend: HTML, CSS, JavaScript
 - Database: PostgreSQL
+- Cloud Computing Service: AWS
 
 📝Prerequisites
 
