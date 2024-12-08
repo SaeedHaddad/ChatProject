@@ -13,8 +13,9 @@ document.getElementById("join-room").addEventListener("click", () => {
   const roomSelect = document.getElementById("room-select");
   const newRoom = roomSelect.value;
   if (newRoom !== currentRoom) {
-    socket.emit("joinRoom", newRoom); // Join new room
+    socket.emit("joinRoom", newRoom); // Notify the server
     currentRoom = newRoom;
+    localStorage.setItem("currentRoom", newRoom); // Save room to local storage
     document.getElementById("chat-box").innerHTML = ""; // Clear chat box
     console.log(`Joined room: ${newRoom}`);
   }
@@ -66,7 +67,11 @@ chatForm.addEventListener("submit", (e) => {
 
 // Join the room and fetch all messages on page load
 window.addEventListener("load", () => {
-  socket.emit("joinRoom", currentRoom);
+  const savedRoom = localStorage.getItem("currentRoom");
+  currentRoom = savedRoom || "general"; // Use saved room or default to 'general'
+  document.getElementById("room-select").value = currentRoom; // Set dropdown to saved room
+  socket.emit("joinRoom", currentRoom); // Join the saved or default room
+  console.log(`Rejoined room: ${currentRoom}`);
 });
 
 // Handle errors
