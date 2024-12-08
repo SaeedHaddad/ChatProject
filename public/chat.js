@@ -1,5 +1,8 @@
 const socket = io();
 let currentRoom = "general";
+const currentUsername = new URLSearchParams(window.location.search).get(
+  "username"
+);
 
 const token = new URLSearchParams(window.location.search).get("token");
 
@@ -24,16 +27,31 @@ document.getElementById("join-room").addEventListener("click", () => {
 // Listen for all messages, including new ones and system messages
 socket.on("message", ({ username, message, timestamp, system }) => {
   const chatBox = document.getElementById("chat-box");
-  const messageElement = document.createElement("p");
-  messageElement.innerHTML = system
-    ? `<em>${message}</em> <small>${new Date(
-        timestamp
-      ).toLocaleTimeString()}</small>`
-    : `<strong>${username}</strong>: ${message} <small>${new Date(
-        timestamp
-      ).toLocaleTimeString()}</small>`;
-  chatBox.appendChild(messageElement);
-  chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll
+  const messageContainer = document.createElement("div");
+  const messageBubble = document.createElement("div");
+  const timestampElement = document.createElement("div");
+
+  messageContainer.classList.add("message-container");
+
+  if (system) {
+    messageBubble.classList.add("message", "system");
+    messageBubble.innerHTML = `<em>${message}</em>`;
+  } else if (username === currentUsername) {
+    // Replace 'currentUsername' with the logged-in user's username
+    messageBubble.classList.add("message", "sent");
+    messageBubble.innerHTML = `<strong>You:</strong> ${message}`;
+  } else {
+    messageBubble.classList.add("message", "received");
+    messageBubble.innerHTML = `<strong>${username}:</strong> ${message}`;
+  }
+
+  timestampElement.classList.add("message-timestamp");
+  timestampElement.innerText = new Date(timestamp).toLocaleTimeString();
+
+  messageContainer.appendChild(messageBubble);
+  messageContainer.appendChild(timestampElement);
+  chatBox.appendChild(messageContainer);
+  chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to the bottom
 });
 
 // Display all previous messages when joining a room or refreshing
@@ -41,13 +59,27 @@ socket.on("previousMessages", (messages) => {
   const chatBox = document.getElementById("chat-box");
   chatBox.innerHTML = ""; // Clear chat box
 
-  // Display all previous messages
   messages.forEach(({ username, message, timestamp }) => {
-    const messageElement = document.createElement("p");
-    messageElement.innerHTML = `<strong>${username}</strong>: ${message} <small>${new Date(
-      timestamp
-    ).toLocaleTimeString()}</small>`;
-    chatBox.appendChild(messageElement);
+    const messageContainer = document.createElement("div");
+    const messageBubble = document.createElement("div");
+    const timestampElement = document.createElement("div");
+
+    messageContainer.classList.add("message-container");
+
+    if (username === "YourUsername") {
+      // Replace 'YourUsername' with your user's name
+      messageBubble.classList.add("message", "sent");
+    } else {
+      messageBubble.classList.add("message", "received");
+      messageBubble.innerHTML = `<strong>${username}:</strong> ${message}`;
+    }
+
+    timestampElement.classList.add("message-timestamp");
+    timestampElement.innerText = new Date(timestamp).toLocaleTimeString();
+
+    messageContainer.appendChild(messageBubble);
+    messageContainer.appendChild(timestampElement);
+    chatBox.appendChild(messageContainer);
   });
 
   chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll

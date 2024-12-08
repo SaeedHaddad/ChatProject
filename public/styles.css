@@ -224,3 +224,40 @@ h2 {
     padding: 20px;
   }
 }
+/* Chat Bubbles */
+.message-container {
+  display: flex;
+  flex-direction: column;
+  margin: 10px 0;
+}
+
+.message {
+  max-width: 70%;
+  padding: 10px 15px;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  word-wrap: break-word;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.message.sent {
+  background-color: #5c6bc0; /* User's message bubble */
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 0;
+}
+
+.message.received {
+  background-color: #e0e0e0; /* Other users' message bubble */
+  color: #333;
+  align-self: flex-start;
+  border-bottom-left-radius: 0;
+}
+
+.message-timestamp {
+  font-size: 0.75rem;
+  color: #999;
+  margin-top: 5px;
+  text-align: right;
+}
