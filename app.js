@@ -1,4 +1,3 @@
-//! app.js(server side)
 const express = require("express");
 const path = require("path");
 const bcrypt = require("bcrypt");
@@ -7,6 +6,10 @@ const http = require("http");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const redisClient = require("./redis.js");
+const multer = require("multer");
+const multerS3 = require("multer-s3");
+const AWS = require("aws-sdk");
+require("dotenv").config();
 
 const app = express();
 const PORT = 3000;
@@ -16,9 +19,22 @@ const io = new Server(server);
 //! Secret Key for JWT
 const JWT_SECRET = "a2F5wqTh9X$mN7!zQ3pL6jR#kG4bS9fU2hJ5";
 
+//! AWS S3 Configuration
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
+
+const s3 = new AWS.S3();
+
 //! Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+
+//! Multer Setup (for file uploads)
+const storage = multer.memoryStorage(); //? Store file in memory temporarily
+const upload = multer({ storage });
 
 //! Routes
 app.get("/", (req, res) => {
@@ -86,12 +102,47 @@ app.get("/chat", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "chat.html"));
 });
 
+//! Handle file upload and generate signed URL for access
+app.post("/upload", upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
+
+  const fileKey = `chat-files/${Date.now()}-${req.file.originalname}`;
+
+  //! Upload file to S3 (without using ACLs)
+  const uploadParams = {
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: fileKey,
+    Body: req.file.buffer,
+    ContentType: req.file.mimetype,
+    Expires: 60 * 5, //* Signed URL expiration time (5 minutes)
+  };
+
+  try {
+    await s3.upload(uploadParams).promise();
+
+    //! Generate a signed URL for the uploaded file to allow temporary access
+    const signedUrl = s3.getSignedUrl("getObject", {
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: fileKey,
+      Expires: 60 * 5, //! URL valid for 5 minutes
+    });
+
+    res.json({
+      fileUrl: signedUrl, //! Send the signed URL to the client for use in chat
+    });
+  } catch (err) {
+    console.error("Error uploading file:", err);
+    res.status(500).json({ error: "Error uploading file to S3" });
+  }
+});
+
 //! Handle Socket.IO connections
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
-  // Handle chat messages
-  socket.on("chatMessage", async ({ token, room, message }) => {
+  socket.on("chatMessage", async ({ token, room, message, imageUrl }) => {
     if (!token) {
       socket.emit("error", "Authentication token is required.");
       return;
@@ -101,16 +152,20 @@ io.on("connection", (socket) => {
       const username = decoded.username;
 
       const messageKey = `room:${room}:messages`;
-      const userMessage = { username, message, timestamp: Date.now() };
+      const userMessage = {
+        username,
+        message,
+        timestamp: Date.now(),
+        imageUrl,
+      };
 
-      // Save the message to Redis
       await redisClient.rPush(messageKey, JSON.stringify(userMessage));
 
-      // Broadcast the message to the room
       io.to(room).emit("message", {
         username,
         message,
         timestamp: new Date().toISOString(),
+        imageUrl,
       });
     } catch (err) {
       console.error("Invalid token:", err.message);
@@ -118,9 +173,8 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Fetch all previous messages when joining a room
   socket.on("joinRoom", async (room) => {
-    const previousRoom = [...socket.rooms][1]; // Get the previous room
+    const previousRoom = [...socket.rooms][1];
     if (previousRoom) {
       socket.leave(previousRoom);
       console.log(`User ${socket.id} left room: ${previousRoom}`);
@@ -134,13 +188,11 @@ io.on("connection", (socket) => {
       const messages = await redisClient.lRange(messageKey, 0, -1);
       const parsedMessages = messages.map((msg) => JSON.parse(msg));
 
-      // Send all previous messages to the client
       socket.emit("previousMessages", parsedMessages);
     } catch (err) {
       console.error("Error fetching messages from Redis:", err);
     }
 
-    // Notify the room about the new user
     socket.emit("message", {
       system: true,
       message: `Welcome to the ${room} room!`,
@@ -154,7 +206,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Handle user disconnection
   socket.on("disconnect", () => {
     console.log("A user disconnected:", socket.id);
   });
