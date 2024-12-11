@@ -14,9 +14,7 @@ const app = express();
 const PORT = 3000;
 const server = http.createServer(app);
 const io = new Server(server);
-
-//! Secret Key for JWT
-const JWT_SECRET = "a2F5wqTh9X$mN7!zQ3pL6jR#kG4bS9fU2hJ5";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 //! AWS S3 Configuration
 AWS.config.update({
